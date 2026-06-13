@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 import os
 import streamlit as st
-from jose import jwt
+
 from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
