@@ -14,20 +14,6 @@ from email.message import EmailMessage
 import pandas as pd
 import streamlit as st
 from sqlalchemy import text
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
-
-try:
-    import matplotlib.pyplot as plt
-    MATPLOTLIB_DISPONIVEL = True
-except Exception:
-    plt = None
-    MATPLOTLIB_DISPONIVEL = False
-
 from db import db_session, run_schema
 from importers import importar_itens_ods
 from logo_corregedoria import LOGO_CORREGEDORIA_BASE64
@@ -136,6 +122,7 @@ st.markdown(
     div[data-testid="stTabs"] button[role="tab"] p {font-size:15px;}
     div[data-testid="stForm"] {background:#FFFFFF;}
     .auth-button-tip {font-size:12px;color:#64748B;margin-top:6px;}
+    div[role="radiogroup"] label {font-weight:800;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -443,6 +430,20 @@ def bootstrap_minimo():
     st.session_state.bootstrap_ok = True
 
 
+def garantir_banco_para_acao() -> bool:
+    """Inicializa banco somente quando o usuario executa uma acao que precisa dele.
+
+    A tela inicial nao chama esta funcao, para abrir rapido no Streamlit Cloud.
+    """
+    try:
+        bootstrap_minimo()
+        return True
+    except Exception as exc:
+        st.error("Nao foi possivel conectar ao Supabase. Confira DATABASE_URL nos Secrets do Streamlit.")
+        st.exception(exc)
+        return False
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def zonas_options_cached() -> list[str]:
     df = dataframe("select id, numero, municipio_sede, uf from zonas_eleitorais where ativa=true order by numero")
@@ -540,22 +541,23 @@ def login_box():
         unsafe_allow_html=True,
     )
 
-    processar_validacao()
-    if processar_recuperacao():
-        return
+    # IMPORTANTE PARA PERFORMANCE:
+    # A tela inicial NAO consulta o Supabase automaticamente.
+    # A conexao so e aberta quando o usuario clica em Entrar, Cadastrar ou Recuperar.
+    modo = st.radio("Acesso", ["Entrar", "Cadastrar usuário", "Recuperar senha"], horizontal=True, label_visibility="collapsed")
 
-    aba_login, aba_cadastro, aba_recuperar = st.tabs(["Entrar", "Cadastrar usuário", "Recuperar senha"])
-
-    with aba_login:
+    if modo == "Entrar":
         st.markdown('<div class="auth-panel">', unsafe_allow_html=True)
         st.markdown('<div class="auth-heading">Acesso ao sistema</div>', unsafe_allow_html=True)
         with st.form("login"):
             email = normalizar_email(st.text_input("E-mail"))
             senha = st.text_input("Senha", type="password")
             submitted = st.form_submit_button("Entrar", type="primary")
-        st.markdown('<div class="auth-button-tip">Use seu e-mail institucional e a senha cadastrada para acessar o painel de fiscalização, gestão e orientação.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="auth-button-tip">A conexao com o banco sera feita apenas apos clicar em Entrar.</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         if submitted:
+            if not garantir_banco_para_acao():
+                return
             with db_session() as conn:
                 row = conn.execute(
                     text("""
@@ -575,7 +577,9 @@ def login_box():
                 else:
                     st.error("Usuário ou senha inválidos.")
 
-    with aba_cadastro:
+    elif modo == "Cadastrar usuário":
+        if not garantir_banco_para_acao():
+            return
         st.markdown('<div class="auth-panel">', unsafe_allow_html=True)
         st.markdown('<div class="auth-heading">Cadastrar usuário</div>', unsafe_allow_html=True)
         st.markdown('<div class="auth-helper">Cadastro institucional. Novos usuários ficam pendentes de validação quando o e-mail SMTP estiver configurado.</div>', unsafe_allow_html=True)
@@ -622,7 +626,9 @@ def login_box():
                         else:
                             st.warning(f"{msg} Link de validação gerado: {link}")
 
-    with aba_recuperar:
+    else:
+        if not garantir_banco_para_acao():
+            return
         st.markdown('<div class="auth-panel">', unsafe_allow_html=True)
         st.markdown('<div class="auth-heading">Recuperar senha</div>', unsafe_allow_html=True)
         st.markdown('<div class="auth-helper">Informe o e-mail cadastrado para gerar um link de redefinição de senha.</div>', unsafe_allow_html=True)
@@ -1185,6 +1191,9 @@ def relatorio_base_df(status=None, zona_id=None, data_de=None, data_ate=None):
 
 
 def tabela_pdf(df: pd.DataFrame, limite=90):
+    from reportlab.lib import colors
+    from reportlab.lib.units import cm
+    from reportlab.platypus import Table, TableStyle
     cols = [c for c in ["ID", "Zona", "Município-sede", "Grupo", "Item", "Prazo", "Status", "Validação"] if c in df.columns]
     temp = df[cols].head(limite).fillna("").astype(str)
     dados = [cols] + temp.values.tolist() if not temp.empty else [["Mensagem"], ["Não há registros para os filtros aplicados."]]
@@ -1200,6 +1209,12 @@ def tabela_pdf(df: pd.DataFrame, limite=90):
 
 
 def gerar_relatorio_pdf(df: pd.DataFrame, filtros: dict) -> bytes:
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=1.1*cm, leftMargin=1.1*cm, topMargin=1.2*cm, bottomMargin=1.2*cm, title="Relatório SIMOC-BA")
     estilos = getSampleStyleSheet()
@@ -1357,14 +1372,12 @@ def page_auditoria():
 
 
 def main():
-    try:
-        bootstrap_minimo()
-    except Exception as exc:
-        st.error("Não foi possível conectar/criar o banco. Confira DATABASE_URL nos Secrets do Streamlit/Supabase.")
-        st.exception(exc)
-        return
+    # Para abrir rapido, a tela inicial nao conecta ao Supabase.
+    # O banco so e acessado apos o clique em Entrar/Cadastrar/Recuperar.
     if "user" not in st.session_state:
         login_box()
+        return
+    if not garantir_banco_para_acao():
         return
     cabecalho()
     sidebar_user()
