@@ -123,6 +123,17 @@ st.markdown(
     div[data-testid="stForm"] {background:#FFFFFF;}
     .auth-button-tip {font-size:12px;color:#64748B;margin-top:6px;}
     div[role="radiogroup"] label {font-weight:800;}
+
+    .interface-banner {border-radius:18px;padding:20px 22px;margin:10px 0 18px 0;border:1px solid #D7E0EA;box-shadow:0 8px 20px rgba(15,47,82,.06);}
+    .interface-banner.corregedoria {background:linear-gradient(120deg,#0F2F52,#174A7C);color:white;}
+    .interface-banner.zona {background:linear-gradient(120deg,#EAF3FF,#FFFFFF);color:#174A7C;border-left:7px solid #174A7C;}
+    .interface-banner h2 {margin:0 0 6px 0;font-size:26px;font-weight:900;}
+    .interface-banner p {margin:3px 0;font-size:14px;line-height:1.45;}
+    .interface-card {background:white;border:1px solid #D7E0EA;border-radius:16px;padding:18px;min-height:156px;box-shadow:0 6px 16px rgba(15,47,82,.06);}
+    .interface-card h3 {font-size:18px;color:#174A7C;margin:0 0 8px 0;font-weight:900;}
+    .interface-card p {font-size:13px;color:#475569;margin:0 0 12px 0;line-height:1.4;}
+    .step-flow {display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 16px 0;}
+    .step-flow span {background:#EAF3FF;border:1px solid #BFDBFE;color:#174A7C;border-radius:999px;padding:8px 12px;font-weight:800;font-size:13px;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -252,6 +263,10 @@ def eh_admin() -> bool:
 
 def eh_corregedoria() -> bool:
     return perfil_atual() in ["admin", "corregedoria_gestor", "corregedoria_analista"]
+
+
+def eh_zona() -> bool:
+    return perfil_atual() in ["chefe_cartorio", "substituto"]
 
 
 def pode_relatorio() -> bool:
@@ -671,17 +686,81 @@ def cabecalho():
 
 
 def sidebar_user():
+    perfil = perfil_atual()
     st.sidebar.markdown("### 🛡️ SIMOC-BA")
-    st.sidebar.markdown("Fiscalizar · Gerenciar · Orientar")
+    if eh_zona():
+        st.sidebar.markdown("Interface da Zona Eleitoral")
+        st.sidebar.caption("A Zona visualiza as tarefas recebidas, executa o checklist e envia as evidências para análise da Corregedoria.")
+    elif eh_corregedoria():
+        st.sidebar.markdown("Interface da Corregedoria")
+        st.sidebar.caption("A Corregedoria cadastra itens, gera tarefas, acompanha prazos, valida respostas e orienta as Zonas.")
+    else:
+        st.sidebar.markdown("Consulta e relatório")
+        st.sidebar.caption("Perfil de leitura para acompanhamento e auditoria.")
     st.sidebar.divider()
-    st.sidebar.success(f"👤 {usuario_logado().get('nome')}\n\n🔐 Perfil: {perfil_atual()}")
-    st.sidebar.caption("Use o menu abaixo para acompanhar pendências, validar respostas e orientar as zonas eleitorais.")
+    st.sidebar.success(f"👤 {usuario_logado().get('nome')}\n\n🔐 Perfil: {perfil}")
     if st.sidebar.button("🚪 Sair do sistema"):
         registrar_auditoria("logout", "usuarios", usuario_logado().get("id"))
         st.session_state.clear()
         st.rerun()
 
 
+
+
+
+def page_inicio_corregedoria():
+    st.markdown("""
+    <div class='interface-banner corregedoria'>
+        <h2>🛡️ Interface da Corregedoria</h2>
+        <p><b>Função da Corregedoria:</b> cadastrar o que deve ser fiscalizado, gerar tarefas para as Zonas, acompanhar prazos, validar respostas e orientar correções.</p>
+        <p>As tarefas nascem aqui. Depois, cada Zona acessa sua própria interface para executar o checklist.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown("<div class='step-flow'><span>1. Cadastrar plano</span><span>2. Gerar tarefas</span><span>3. Zonas executam</span><span>4. Validar/devolver</span><span>5. Relatar</span></div>", unsafe_allow_html=True)
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown("<div class='interface-card'><h3>📌 Plano de ação</h3><p>Conferir os itens da planilha inicial: ELO, Sistemas da Intranet e observações críticas.</p></div>", unsafe_allow_html=True)
+        nav_button("Abrir plano", "📌 Plano de ação", "home_cor_plano")
+    with c2:
+        st.markdown("<div class='interface-card'><h3>⚙️ Gerar tarefas</h3><p>Criar ciclos de monitoramento e distribuir tarefas para todas as Zonas Eleitorais.</p></div>", unsafe_allow_html=True)
+        nav_button("Cadastrar/gerar tarefas", "⚙️ Cadastrar tarefas", "home_cor_tarefas")
+    with c3:
+        st.markdown("<div class='interface-card'><h3>🔎 Validar respostas</h3><p>Analisar o checklist enviado pela Zona, validar, devolver ou colocar em análise.</p></div>", unsafe_allow_html=True)
+        nav_button("Validar checklist", "🔎 Validar checklist", "home_cor_validar")
+
+    c4, c5, c6 = st.columns(3)
+    with c4:
+        st.markdown("<div class='interface-card'><h3>📊 Painel gerencial</h3><p>Acompanhar pendências, atrasos, itens críticos e evolução das Zonas.</p></div>", unsafe_allow_html=True)
+        nav_button("Ver painel", "📊 Painel da Corregedoria", "home_cor_painel")
+    with c5:
+        st.markdown("<div class='interface-card'><h3>🧭 Orientar Zonas</h3><p>Usar modelos de comunicação para pendência, devolução e validação.</p></div>", unsafe_allow_html=True)
+        nav_button("Orientações", "🧭 Orientações às Zonas", "home_cor_orienta")
+    with c6:
+        st.markdown("<div class='interface-card'><h3>📄 Relatórios</h3><p>Emitir relatórios para gestão, auditoria e acompanhamento pela Corregedoria.</p></div>", unsafe_allow_html=True)
+        nav_button("Emitir relatório", "📄 Relatórios", "home_cor_relat")
+
+
+def page_inicio_zona():
+    st.markdown("""
+    <div class='interface-banner zona'>
+        <h2>🏛️ Interface da Zona Eleitoral</h2>
+        <p><b>Função da Zona:</b> visualizar tarefas recebidas, executar a rotina cartorária e marcar o checklist.</p>
+        <p>A Zona não cria o plano de fiscalização. Ela responde às tarefas distribuídas pela Corregedoria.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown("<div class='step-flow'><span>1. Abrir checklist</span><span>2. Executar tarefa</span><span>3. Marcar status</span><span>4. Anexar evidência</span><span>5. Enviar</span></div>", unsafe_allow_html=True)
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown("<div class='interface-card'><h3>✅ Meu checklist</h3><p>Ver tarefas pendentes, atrasadas ou devolvidas e enviar resposta para a Corregedoria.</p></div>", unsafe_allow_html=True)
+        nav_button("Abrir checklist", "✅ Checklist da Zona", "home_zona_check")
+    with c2:
+        st.markdown("<div class='interface-card'><h3>📌 Plano de ação</h3><p>Consultar a origem das tarefas: ELO, Sistemas da Intranet e observações da planilha inicial.</p></div>", unsafe_allow_html=True)
+        nav_button("Consultar plano", "📌 Plano de ação", "home_zona_plano")
+    with c3:
+        st.markdown("<div class='interface-card'><h3>🧭 Orientações</h3><p>Consultar orientações gerais da Corregedoria para preenchimento do checklist.</p></div>", unsafe_allow_html=True)
+        nav_button("Ver orientações", "🧭 Orientações", "home_zona_orienta")
 
 
 # ============================================================
@@ -836,12 +915,16 @@ def gerar_ciclo(conn, tipo: str, inicio: date, fim: date) -> int:
 
 
 def page_gerar_tarefas():
-    st.header("Gerar tarefas de monitoramento")
+    st.header("Interface da Corregedoria: cadastrar e distribuir tarefas")
+    st.info("Aqui a Corregedoria transforma os itens do plano de monitoramento em tarefas para as Zonas Eleitorais. As Zonas não criam tarefas; elas apenas executam e preenchem o checklist recebido.")
+    titulo_secao("1️⃣", "Definir ciclo, prazo e periodicidade")
     frequencia = st.selectbox("Frequência", ["diaria", "semanal", "quinzenal", "mensal", "bimestral", "trimestral", "anual"])
     inicio = st.date_input("Início", value=date.today().replace(day=1), format="DD/MM/YYYY")
     fim = st.date_input("Fim", value=inicio + timedelta(days=30), format="DD/MM/YYYY")
     prazo = st.date_input("Prazo de preenchimento", value=fim, format="DD/MM/YYYY")
     somente_itens = st.checkbox("Gerar apenas itens ativos desta frequência", value=True)
+    titulo_secao("2️⃣", "Enviar tarefas para as Zonas")
+    st.caption("O sistema preserva tarefas já criadas para o mesmo ciclo, zona e item. Nada é apagado.")
     if st.button("Gerar tarefas para todas as zonas ativas", type="primary"):
         with db_session() as conn:
             ciclo_id = gerar_ciclo(conn, frequencia, inicio, fim)
@@ -880,17 +963,48 @@ def tarefas_df(status_list=None, zona_id=None, limit=500):
 
 
 def page_minhas_tarefas():
-    atualizar_atrasos()
-    st.header("Preenchimento do checklist")
+    st.markdown("""
+    <div class='interface-banner zona'>
+        <h2>🏛️ Interface da Zona Eleitoral</h2>
+        <p><b>Função da Zona:</b> executar as tarefas recebidas da Corregedoria e preencher o checklist com status, observação e evidência.</p>
+        <p>A Zona não cadastra tarefas gerais, não gera ciclo e não valida respostas. A resposta enviada fica disponível para análise da Corregedoria.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown("<div class='step-flow'><span>1. Ver tarefa</span><span>2. Executar rotina</span><span>3. Marcar checklist</span><span>4. Informar evidência</span><span>5. Enviar à Corregedoria</span></div>", unsafe_allow_html=True)
+
     user = usuario_logado()
-    filtro_status = st.multiselect("Status", STATUS_TAREFA, default=["pendente", "atrasado", "devolvido"])
     zona_id = user.get("zona_eleitoral_id") if perfil_atual() in ["chefe_cartorio", "substituto"] else None
-    tarefas = tarefas_df(filtro_status, zona_id, 500)
+    if eh_zona() and not zona_id:
+        st.error("Seu usuário está como perfil de Zona, mas não possui Zona Eleitoral vinculada. Peça à Corregedoria para vincular seu cadastro à zona correta.")
+        return
+
+    colf1, colf2 = st.columns([2, 1])
+    with colf1:
+        filtro_status = st.multiselect("Filtrar checklist por status", STATUS_TAREFA, default=["pendente", "atrasado", "devolvido"])
+    with colf2:
+        limite = st.number_input("Quantidade máxima", min_value=20, max_value=500, value=100, step=20)
+
+    tarefas = tarefas_df(filtro_status, zona_id, int(limite))
     st.dataframe(tarefas, use_container_width=True, hide_index=True)
     if tarefas.empty:
+        st.success("Nenhuma tarefa encontrada para o filtro selecionado.")
         return
-    tarefa_id = st.selectbox("Escolha a tarefa para preencher/comentar", tarefas["id"].tolist())
-    with st.expander("Histórico, comentários e anexos da tarefa", expanded=False):
+
+    st.subheader("Preencher checklist da tarefa")
+    tarefa_id = st.selectbox("Escolha a tarefa para preencher", tarefas["id"].tolist())
+    tarefa_sel = tarefas[tarefas["id"] == tarefa_id].iloc[0].to_dict()
+    st.markdown(
+        f"""
+        <div class='guide-box'>
+            <h4>{tarefa_sel.get('grupo','')} · {tarefa_sel.get('zona','')}</h4>
+            <p><b>Tarefa:</b> {tarefa_sel.get('descricao','')}</p>
+            <p><b>Prazo:</b> {tarefa_sel.get('prazo','')} · <b>Status atual:</b> {tarefa_sel.get('status','')}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    with st.expander("Histórico da tarefa", expanded=False):
         hist = dataframe("""
             select r.enviado_em as data, u.nome as usuario, r.status, r.observacao, r.justificativa, r.evidencia_url
             from respostas r join usuarios u on u.id=r.usuario_id where r.tarefa_zona_id=:id order by r.enviado_em desc
@@ -898,36 +1012,31 @@ def page_minhas_tarefas():
         st.dataframe(hist, use_container_width=True, hide_index=True)
         comentarios = dataframe("select criado_em, autor_nome, comentario from comentarios_tarefa where tarefa_zona_id=:id order by criado_em desc", id=tarefa_id)
         st.dataframe(comentarios, use_container_width=True, hide_index=True)
-        anexos = dataframe("select criado_em, enviado_por_nome, nome_arquivo, url_arquivo from anexos_tarefa where tarefa_zona_id=:id order by criado_em desc", id=tarefa_id)
-        st.dataframe(anexos, use_container_width=True, hide_index=True)
-    with st.form("responder"):
-        status = st.selectbox("Status do check", ["cumprido", "cumprido_com_ressalva", "nao_se_aplica", "pendente"])
-        observacao = st.text_area("Observação")
-        justificativa = st.text_area("Justificativa, se houver")
-        evidencia_url = st.text_input("URL da evidência/documento SEI, se aplicável")
-        comentario = st.text_area("Comentário interno opcional")
-        anexo_nome = st.text_input("Nome do anexo/link opcional")
-        anexo_url = st.text_input("URL do anexo/link opcional")
-        submitted = st.form_submit_button("Enviar check", type="primary")
+
+    with st.form("responder_checklist_zona"):
+        status = st.radio("Marcar checklist", ["cumprido", "cumprido_com_ressalva", "nao_se_aplica", "pendente"], horizontal=True)
+        observacao = st.text_area("Observação da Zona", placeholder="Informe o que foi realizado, data da conferência ou situação encontrada.")
+        justificativa = st.text_area("Justificativa, se houver", placeholder="Use quando houver ressalva, impedimento, pendência ou não aplicação.")
+        evidencia_url = st.text_input("Link da evidência / documento SEI / comprovante")
+        anexo_nome = st.text_input("Nome do anexo ou evidência")
+        anexo_url = st.text_input("URL complementar do anexo, se houver")
+        submitted = st.form_submit_button("Enviar checklist para a Corregedoria", type="primary")
+
     if submitted:
         with db_session() as conn:
             conn.execute(text("""
                 insert into respostas (tarefa_zona_id, usuario_id, status, observacao, justificativa, evidencia_url)
                 values (:tarefa, :usuario, :status, :observacao, :justificativa, :evidencia)
             """), {"tarefa": tarefa_id, "usuario": user["id"], "status": status, "observacao": observacao, "justificativa": justificativa, "evidencia": evidencia_url})
-            conn.execute(text("update tarefas_zona set status=:status, atualizado_em=(now() at time zone 'America/Sao_Paulo') where id=:id"), {"status": status, "id": tarefa_id})
-            if comentario.strip():
-                conn.execute(text("""
-                    insert into comentarios_tarefa (tarefa_zona_id, comentario, autor_usuario_id, autor_nome, autor_email)
-                    values (:id, :comentario, :uid, :nome, :email)
-                """), {"id": tarefa_id, "comentario": comentario.strip(), "uid": user["id"], "nome": user["nome"], "email": user["email"]})
+            novo_status = "em_analise" if status in ["cumprido", "cumprido_com_ressalva", "nao_se_aplica"] else status
+            conn.execute(text("update tarefas_zona set status=:status, atualizado_em=(now() at time zone 'America/Sao_Paulo') where id=:id"), {"status": novo_status, "id": tarefa_id})
             if anexo_url.strip():
                 conn.execute(text("""
                     insert into anexos_tarefa (tarefa_zona_id, nome_arquivo, url_arquivo, enviado_por_usuario_id, enviado_por_nome, enviado_por_email)
                     values (:id, :nome_arq, :url, :uid, :nome, :email)
                 """), {"id": tarefa_id, "nome_arq": anexo_nome or "Link de evidência", "url": anexo_url, "uid": user["id"], "nome": user["nome"], "email": user["email"]})
-        registrar_auditoria("enviar_check", "tarefas_zona", tarefa_id, campo="status", novo=status)
-        st.success("Check enviado para acompanhamento da Corregedoria.")
+        registrar_auditoria("zona_envia_checklist", "tarefas_zona", tarefa_id, campo="status", novo=status)
+        st.success("Checklist enviado para análise da Corregedoria.")
         st.rerun()
 
 
@@ -1382,23 +1491,32 @@ def main():
     cabecalho()
     sidebar_user()
     perfil = perfil_atual()
-    pages = ["📊 Painel de fiscalização", "📌 Plano de ação", "🗺️ Zonas eleitorais", "✅ Minhas tarefas", "🧭 Orientações às zonas"]
-    if eh_corregedoria():
-        pages += ["🔎 Validação", "⚙️ Gerar tarefas", "📄 Relatórios"]
-    if perfil == "auditor":
-        pages += ["📄 Relatórios"]
-    if perfil == "admin":
-        pages += ["📥 Importação", "👥 Usuários", "💾 Backup e restauração", "🧾 Auditoria"]
+
+    if eh_zona():
+        pages = ["🏠 Início da Zona", "✅ Checklist da Zona", "📌 Plano de ação", "🧭 Orientações"]
+    elif eh_corregedoria():
+        pages = ["🏠 Início da Corregedoria", "📊 Painel da Corregedoria", "📌 Plano de ação", "⚙️ Cadastrar tarefas", "🔎 Validar checklist", "🗺️ Zonas eleitorais", "🧭 Orientações às Zonas", "📄 Relatórios"]
+        if perfil == "admin":
+            pages += ["📥 Importação", "👥 Usuários", "💾 Backup e restauração", "🧾 Auditoria"]
+    elif perfil == "auditor":
+        pages = ["📊 Painel da Corregedoria", "📄 Relatórios", "🗺️ Zonas eleitorais"]
+    else:
+        pages = ["📌 Plano de ação"]
+
     target = st.session_state.pop("nav_target", None)
     index = pages.index(target) if target in pages else 0
     page = st.sidebar.radio("Navegação", pages, index=index)
-    if page == "📊 Painel de fiscalização": page_dashboard()
+
+    if page == "🏠 Início da Corregedoria": page_inicio_corregedoria()
+    elif page == "🏠 Início da Zona": page_inicio_zona()
+    elif page == "📊 Painel da Corregedoria": page_dashboard()
     elif page == "📌 Plano de ação": page_plano_acao()
     elif page == "🗺️ Zonas eleitorais": page_zonas()
-    elif page == "✅ Minhas tarefas": page_minhas_tarefas()
-    elif page == "🧭 Orientações às zonas": page_orientacoes()
-    elif page == "🔎 Validação": page_validacao()
-    elif page == "⚙️ Gerar tarefas": page_gerar_tarefas()
+    elif page == "✅ Checklist da Zona": page_minhas_tarefas()
+    elif page == "🧭 Orientações": page_orientacoes()
+    elif page == "🧭 Orientações às Zonas": page_orientacoes()
+    elif page == "🔎 Validar checklist": page_validacao()
+    elif page == "⚙️ Cadastrar tarefas": page_gerar_tarefas()
     elif page == "📥 Importação": page_importacao()
     elif page == "👥 Usuários": page_usuarios()
     elif page == "💾 Backup e restauração": page_backup()
