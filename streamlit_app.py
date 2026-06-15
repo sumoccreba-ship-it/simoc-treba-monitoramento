@@ -38,12 +38,18 @@ from zonas_bahia import ZONAS_BAHIA
 st.set_page_config(page_title="SIMOC-BA - Monitoramento Cartorário", page_icon="🛡️", layout="wide")
 
 FUSO_HORARIO_BRASILIA = timezone(timedelta(hours=-3), name="BRT")
+FORMATO_DATA_BR = "%d/%m/%Y"
+FORMATO_DATA_HORA_BR = "%d/%m/%Y %H:%M"
+SQL_AGORA_BRASILIA = "(now() at time zone 'America/Sao_Paulo')"
+SQL_HOJE_BRASILIA = "((now() at time zone 'America/Sao_Paulo')::date)"
 DOMINIO_INSTITUCIONAL = "@tre-ba.jus.br"
 NOME_SISTEMA = "SIMOC-BA"
 NOME_COMPLETO = "Sistema de Monitoramento Cartorário das Zonas Eleitorais - TRE-BA"
 TRIBUNAL_PADRAO = "TRE-BA"
 UF_PADRAO = "BA"
 UNIDADE_CORREGEDORIA = "CRE-BA"
+TITULO_TELA_INICIAL = "SIMOC-BA - Sistema de Monitoramento Cartorário das Zonas Eleitorais"
+SUBTITULO_TELA_INICIAL = "Corregedoria Regional Eleitoral da Bahia · Fiscalização, gestão e orientação das Zonas Eleitorais"
 
 PERFIS = [
     ("admin", "Administra sistema, usuários, zonas, parâmetros, backup e restauração."),
@@ -116,6 +122,20 @@ st.markdown(
     .plan-chip {display:inline-block;margin:4px 5px 4px 0;padding:6px 10px;border-radius:999px;background:#EAF3FF;border:1px solid #BFDBFE;color:#174A7C;font-weight:800;font-size:12px;}
     .risk-strip {border-left:7px solid #B91C1C;background:#FEF2F2;border-radius:12px;padding:13px 15px;margin:10px 0;color:#7F1D1D;}
     .orientation-strip {border-left:7px solid #005EB8;background:#EFF6FF;border-radius:12px;padding:13px 15px;margin:10px 0;color:#174A7C;}
+    .auth-hero {background:#DCE7F3;border:1px solid #C6D2E1;border-radius:18px;padding:28px 24px 26px 24px;margin-bottom:18px;box-shadow:0 4px 16px rgba(15,47,82,.06);}
+    .auth-logo-band {background:linear-gradient(90deg,#EEF4FB 0%, #F8FAFD 100%);border-radius:18px;padding:18px 26px;display:flex;align-items:center;justify-content:center;min-height:150px;margin:0 auto 20px auto;max-width:820px;box-shadow:inset 0 0 0 1px rgba(23,74,124,.05);}
+    .auth-logo-band img {max-width:100%;width:min(760px, 92%);max-height:140px;object-fit:contain;display:block;}
+    .auth-title {text-align:center;font-size:25px;line-height:1.28;font-weight:900;color:#174A7C;margin:6px 0 8px 0;}
+    .auth-subtitle {text-align:center;font-size:14px;line-height:1.5;color:#415466;margin:0 auto;max-width:980px;}
+    .auth-panel {background:#FFFFFF;border:1px solid #E5EAF1;border-radius:18px;padding:22px 24px 18px 24px;box-shadow:0 6px 18px rgba(15,47,82,.05);margin-top:10px;}
+    .auth-heading {font-size:20px;font-weight:900;color:#1E3A5F;margin:4px 0 14px 0;}
+    .auth-helper {font-size:13px;color:#64748B;margin:-4px 0 14px 0;}
+    div[data-testid="stTabs"] > div:first-child {gap:28px;}
+    div[data-testid="stTabs"] button[role="tab"] {height:44px;padding:0 4px;border-radius:0;border-bottom:2px solid transparent;font-weight:700;color:#475569;}
+    div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {color:#EF4444;border-bottom:3px solid #EF4444;}
+    div[data-testid="stTabs"] button[role="tab"] p {font-size:15px;}
+    div[data-testid="stForm"] {background:#FFFFFF;}
+    .auth-button-tip {font-size:12px;color:#64748B;margin-top:6px;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -131,7 +151,56 @@ def agora_iso() -> str:
 
 
 def agora_texto() -> str:
-    return agora_brasilia().strftime("%d/%m/%Y %H:%M")
+    return agora_brasilia().strftime(FORMATO_DATA_HORA_BR)
+
+
+def data_texto(valor) -> str:
+    if valor is None or pd.isna(valor):
+        return ""
+    if isinstance(valor, datetime):
+        dt = valor
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(FUSO_HORARIO_BRASILIA)
+        return dt.strftime(FORMATO_DATA_BR)
+    if isinstance(valor, date):
+        return valor.strftime(FORMATO_DATA_BR)
+    try:
+        dt = pd.to_datetime(valor)
+        if pd.isna(dt):
+            return ""
+        return dt.strftime(FORMATO_DATA_BR)
+    except Exception:
+        return str(valor)
+
+
+def data_hora_texto(valor) -> str:
+    if valor is None or pd.isna(valor):
+        return ""
+    try:
+        dt = pd.to_datetime(valor)
+        if pd.isna(dt):
+            return ""
+        if getattr(dt, "tzinfo", None) is not None:
+            dt = dt.tz_convert(FUSO_HORARIO_BRASILIA) if hasattr(dt, "tz_convert") else dt.astimezone(FUSO_HORARIO_BRASILIA)
+        return dt.strftime(FORMATO_DATA_HORA_BR)
+    except Exception:
+        return str(valor)
+
+
+def formatar_dataframe_datas(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        return df
+    out = df.copy()
+    colunas_data = {"prazo", "periodo_inicio", "periodo_fim", "início ciclo", "fim ciclo", "data_de", "data_ate"}
+    palavras_data = ["prazo", "início ciclo", "fim ciclo", "periodo_inicio", "periodo_fim"]
+    palavras_data_hora = ["criado", "criada", "enviado", "envio", "atualizado", "validado", "último", "ultimo", "login", "data", "emissão"]
+    for col in out.columns:
+        nome = str(col).strip().lower()
+        if nome in colunas_data or any(p in nome for p in palavras_data):
+            out[col] = out[col].apply(data_texto)
+        elif any(p in nome for p in palavras_data_hora):
+            out[col] = out[col].apply(data_hora_texto)
+    return out
 
 
 def normalizar_email(email: str) -> str:
@@ -269,7 +338,7 @@ def scalar(sql: str, **params):
         return conn.execute(text(sql), params).scalar()
 
 
-@st.cache_data(ttl=20, show_spinner=False)
+@st.cache_data(ttl=90, show_spinner=False)
 def _dataframe_cached(sql: str, params_json: str) -> pd.DataFrame:
     params = json.loads(params_json) if params_json else {}
     with db_session() as conn:
@@ -281,14 +350,18 @@ def dataframe(sql: str, use_cache: bool = True, **params) -> pd.DataFrame:
     # dados operacionais presos por muito tempo.
     if use_cache:
         params_json = json.dumps(params, sort_keys=True, default=str)
-        return _dataframe_cached(sql, params_json)
+        return formatar_dataframe_datas(_dataframe_cached(sql, params_json))
     with db_session() as conn:
-        return pd.read_sql_query(text(sql), conn, params=params)
+        return formatar_dataframe_datas(pd.read_sql_query(text(sql), conn, params=params))
 
 
 def limpar_cache_dados():
     try:
         _dataframe_cached.clear()
+    except Exception:
+        pass
+    try:
+        zonas_options_cached.clear()
     except Exception:
         pass
 
@@ -308,8 +381,8 @@ def registrar_auditoria(acao: str, entidade: str, entidade_id=None, campo: str =
                 text(
                     """
                     insert into logs_auditoria
-                    (usuario_id, usuario_nome, usuario_email, acao, entidade, entidade_id, campo, valor_anterior, valor_novo, detalhe)
-                    values (:uid, :nome, :email, :acao, :entidade, :entidade_id, :campo, :anterior, :novo, :detalhe)
+                    (usuario_id, usuario_nome, usuario_email, acao, entidade, entidade_id, campo, valor_anterior, valor_novo, detalhe, criado_em)
+                    values (:uid, :nome, :email, :acao, :entidade, :entidade_id, :campo, :anterior, :novo, :detalhe, (now() at time zone 'America/Sao_Paulo'))
                     """
                 ),
                 {
@@ -322,21 +395,17 @@ def registrar_auditoria(acao: str, entidade: str, entidade_id=None, campo: str =
         pass
 
 
-def bootstrap_minimo():
-    """Inicializacao leve do aplicativo.
+@st.cache_resource(ttl=3600, show_spinner=False)
+def inicializar_banco_uma_vez(admin_email: str, admin_password_hash: str) -> bool:
+    """Executa apenas a inicializacao essencial, no maximo uma vez por hora por processo.
 
-    Esta funcao NAO importa zonas, NAO importa municipios, NAO importa a
-    planilha e NAO gera tarefas. Ela apenas garante a existencia do schema,
-    dos perfis e do usuario administrador inicial.
+    Antes, cada sessao de usuario chamava run_schema(), o que deixava o
+    primeiro carregamento lento no Streamlit Cloud. Agora a verificacao do
+    schema, perfis e usuario administrador fica em cache de recurso.
 
-    A carga de zonas/municipios e da planilha deve ser feita somente por acao
-    manual do administrador na pagina "Importacao". Assim, quando as zonas
-    ja estiverem cadastradas no Supabase, o sistema apenas consulta os dados
-    existentes e abre mais rapido.
+    A funcao NAO importa zonas, NAO importa municipios, NAO importa planilha e
+    NAO gera tarefas. Essas acoes continuam manuais na pagina Importacao.
     """
-    if st.session_state.get("bootstrap_ok"):
-        return
-
     run_schema()
     with db_session() as conn:
         for nome, descricao in PERFIS:
@@ -345,8 +414,6 @@ def bootstrap_minimo():
                 {"nome": nome, "descricao": descricao},
             )
 
-        admin_email = st.secrets.get("ADMIN_EMAIL", os.getenv("ADMIN_EMAIL", "admin@tre-ba.jus.br"))
-        admin_password = str(st.secrets.get("ADMIN_PASSWORD", os.getenv("ADMIN_PASSWORD", "admin123")))
         perfil_id = conn.execute(text("select id from perfis where nome='admin'")).scalar_one()
         exists = conn.execute(text("select id from usuarios where email=:email"), {"email": normalizar_email(admin_email)}).scalar()
         if not exists:
@@ -355,20 +422,42 @@ def bootstrap_minimo():
                     insert into usuarios (nome, email, senha_hash, perfil_id, ativo, validado, secao_operador)
                     values (:nome, :email, :senha, :perfil_id, true, true, :secao)
                 """),
-                {"nome": "Administrador", "email": normalizar_email(admin_email), "senha": hash_password(admin_password), "perfil_id": perfil_id, "secao": UNIDADE_CORREGEDORIA},
+                {"nome": "Administrador", "email": normalizar_email(admin_email), "senha": admin_password_hash, "perfil_id": perfil_id, "secao": UNIDADE_CORREGEDORIA},
             )
+    return True
+
+
+def bootstrap_minimo():
+    """Inicializacao leve do aplicativo.
+
+    NAO importa zonas, NAO importa municipios, NAO importa planilha e NAO gera
+    tarefas. A verificacao do schema/perfis/admin fica cacheada para evitar
+    lentidao a cada nova sessao do Streamlit.
+    """
+    if st.session_state.get("bootstrap_ok"):
+        return
+
+    admin_email = st.secrets.get("ADMIN_EMAIL", os.getenv("ADMIN_EMAIL", "admin@tre-ba.jus.br"))
+    admin_password = str(st.secrets.get("ADMIN_PASSWORD", os.getenv("ADMIN_PASSWORD", "admin123")))
+    inicializar_banco_uma_vez(normalizar_email(admin_email), hash_password(admin_password))
     st.session_state.bootstrap_ok = True
 
 
-def zonas_options(incluir_nenhuma=True) -> list[str]:
+@st.cache_data(ttl=300, show_spinner=False)
+def zonas_options_cached() -> list[str]:
     df = dataframe("select id, numero, municipio_sede, uf from zonas_eleitorais where ativa=true order by numero")
-    opcoes = ["Nenhuma"] if incluir_nenhuma else []
     if df.empty:
-        return opcoes + ZONAS_BAHIA
+        return ZONAS_BAHIA
+    opcoes = []
     for r in df.itertuples():
         sede = r.municipio_sede if r.municipio_sede and r.municipio_sede != "A definir" else "Bahia"
         opcoes.append(f"{int(r.id)} - {int(r.numero):03d}ª ZE - {sede}/{r.uf or 'BA'}")
     return opcoes
+
+
+def zonas_options(incluir_nenhuma=True) -> list[str]:
+    opcoes = zonas_options_cached()
+    return (["Nenhuma"] + opcoes) if incluir_nenhuma else opcoes
 
 
 def zona_id_from_label(label: str):
@@ -402,7 +491,7 @@ def processar_validacao():
     with db_session() as conn:
         row = conn.execute(text("select id from usuarios where token_validacao=:token"), {"token": token}).mappings().first()
         if row:
-            conn.execute(text("update usuarios set validado=true, ativo=true, token_validacao=null, atualizado_em=now() where id=:id"), {"id": row["id"]})
+            conn.execute(text("update usuarios set validado=true, ativo=true, token_validacao=null, atualizado_em=(now() at time zone 'America/Sao_Paulo') where id=:id"), {"id": row["id"]})
             st.success("Cadastro validado com sucesso. Faça login para acessar o sistema.")
             registrar_auditoria("validacao_cadastro", "usuarios", row["id"])
         else:
@@ -415,7 +504,7 @@ def processar_recuperacao():
         return False
     with db_session() as conn:
         row = conn.execute(
-            text("select id, email from usuarios where token_recuperacao=:token and (token_recuperacao_expira_em is null or token_recuperacao_expira_em > now())"),
+            text("select id, email from usuarios where token_recuperacao=:token and (token_recuperacao_expira_em is null or token_recuperacao_expira_em > (now() at time zone 'America/Sao_Paulo'))"),
             {"token": token},
         ).mappings().first()
     if not row:
@@ -431,7 +520,7 @@ def processar_recuperacao():
             st.warning("As senhas não conferem.")
         else:
             with db_session() as conn:
-                conn.execute(text("update usuarios set senha_hash=:h, token_recuperacao=null, token_recuperacao_expira_em=null, atualizado_em=now() where id=:id"), {"h": hash_password(str(nova)[:72]), "id": row["id"]})
+                conn.execute(text("update usuarios set senha_hash=:h, token_recuperacao=null, token_recuperacao_expira_em=null, atualizado_em=(now() at time zone 'America/Sao_Paulo') where id=:id"), {"h": hash_password(str(nova)[:72]), "id": row["id"]})
             registrar_auditoria("recuperacao_senha", "usuarios", row["id"], detalhe=row["email"])
             st.success("Senha redefinida com sucesso. Faça login novamente.")
     return True
@@ -440,23 +529,32 @@ def processar_recuperacao():
 def login_box():
     st.markdown(
         f"""
-        <div class="main-header">
-            <div class="logo-box"><img src="data:image/png;base64,{LOGO_CORREGEDORIA_BASE64}"></div>
-            <div><h1>{NOME_SISTEMA} - {NOME_COMPLETO}</h1><p>Corregedoria Regional Eleitoral da Bahia</p></div>
+        <div class="auth-hero">
+            <div class="auth-logo-band">
+                <img src="data:image/png;base64,{LOGO_CORREGEDORIA_BASE64}" alt="Logo da Corregedoria Regional Eleitoral da Bahia">
+            </div>
+            <div class="auth-title">{TITULO_TELA_INICIAL}</div>
+            <div class="auth-subtitle">{SUBTITULO_TELA_INICIAL}</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
+
     processar_validacao()
     if processar_recuperacao():
         return
 
     aba_login, aba_cadastro, aba_recuperar = st.tabs(["Entrar", "Cadastrar usuário", "Recuperar senha"])
+
     with aba_login:
+        st.markdown('<div class="auth-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="auth-heading">Acesso ao sistema</div>', unsafe_allow_html=True)
         with st.form("login"):
             email = normalizar_email(st.text_input("E-mail"))
             senha = st.text_input("Senha", type="password")
             submitted = st.form_submit_button("Entrar", type="primary")
+        st.markdown('<div class="auth-button-tip">Use seu e-mail institucional e a senha cadastrada para acessar o painel de fiscalização, gestão e orientação.</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
         if submitted:
             with db_session() as conn:
                 row = conn.execute(
@@ -468,7 +566,7 @@ def login_box():
                     {"email": email},
                 ).mappings().first()
                 if row and row["validado"] and verify_password(senha, row["senha_hash"]):
-                    conn.execute(text("update usuarios set ultimo_login=now() where id=:id"), {"id": row["id"]})
+                    conn.execute(text("update usuarios set ultimo_login=(now() at time zone 'America/Sao_Paulo') where id=:id"), {"id": row["id"]})
                     st.session_state.user = {k: v for k, v in dict(row).items() if k != "senha_hash"}
                     registrar_auditoria("login", "usuarios", row["id"], detalhe=email)
                     st.rerun()
@@ -478,7 +576,9 @@ def login_box():
                     st.error("Usuário ou senha inválidos.")
 
     with aba_cadastro:
-        st.caption("Cadastro institucional. Novos usuários ficam pendentes de validação quando o e-mail SMTP estiver configurado.")
+        st.markdown('<div class="auth-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="auth-heading">Cadastrar usuário</div>', unsafe_allow_html=True)
+        st.markdown('<div class="auth-helper">Cadastro institucional. Novos usuários ficam pendentes de validação quando o e-mail SMTP estiver configurado.</div>', unsafe_allow_html=True)
         with st.form("auto_cadastro"):
             nome = st.text_input("Nome completo")
             email = normalizar_email(st.text_input("E-mail institucional", key="cad_email"))
@@ -486,6 +586,7 @@ def login_box():
             senha = st.text_input("Senha", type="password", key="cad_senha")
             confirmar = st.text_input("Confirmar senha", type="password")
             submitted = st.form_submit_button("Cadastrar")
+        st.markdown('</div>', unsafe_allow_html=True)
         if submitted:
             if not nome.strip():
                 st.warning("Informe o nome.")
@@ -522,6 +623,9 @@ def login_box():
                             st.warning(f"{msg} Link de validação gerado: {link}")
 
     with aba_recuperar:
+        st.markdown('<div class="auth-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="auth-heading">Recuperar senha</div>', unsafe_allow_html=True)
+        st.markdown('<div class="auth-helper">Informe o e-mail cadastrado para gerar um link de redefinição de senha.</div>', unsafe_allow_html=True)
         email_rec = normalizar_email(st.text_input("E-mail cadastrado", key="rec_email"))
         if st.button("Gerar link de recuperação"):
             with db_session() as conn:
@@ -539,6 +643,7 @@ def login_box():
                         st.success("Link de recuperação enviado ao e-mail informado.")
                     else:
                         st.warning(f"{msg} Link de recuperação de senha gerado: {link}")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 def cabecalho():
@@ -585,22 +690,32 @@ def render_metric(label, value, color="#174A7C", icon="📊"):
     )
 
 
-def atualizar_atrasos():
+def atualizar_atrasos_manual():
+    """Atualiza atrasos apenas quando o usuario pedir.
+
+    O dashboard nao executa UPDATE automaticamente, porque escrita no banco a
+    cada abertura deixava o app mais lento. As metricas ja consideram como
+    atrasadas as tarefas pendentes com prazo anterior a data de Brasilia.
+    """
     with db_session() as conn:
-        conn.execute(text("update tarefas_zona set status='atrasado', atualizado_em=now() where prazo < current_date and status='pendente'"))
+        conn.execute(text("update tarefas_zona set status='atrasado', atualizado_em=(now() at time zone 'America/Sao_Paulo') where prazo < ((now() at time zone 'America/Sao_Paulo')::date) and status='pendente'"))
+    limpar_cache_dados()
 
 
 def page_dashboard():
-    atualizar_atrasos()
     st.header("📊 Painel de fiscalização")
     st.caption("Visão executiva para fiscalizar cumprimento, priorizar riscos e orientar as Zonas Eleitorais.")
+    if st.button("🔄 Atualizar atrasos agora", help="Use quando quiser gravar no banco as tarefas pendentes cujo prazo já venceu."):
+        atualizar_atrasos_manual()
+        st.success("Atrasos atualizados com base na data de Brasília.")
+
     df = dataframe(
         """
         select
-          count(*) filter (where status = 'pendente') as pendentes,
+          count(*) filter (where status = 'pendente' and (prazo is null or prazo >= ((now() at time zone 'America/Sao_Paulo')::date))) as pendentes,
           count(*) filter (where status = 'cumprido') as cumpridas,
           count(*) filter (where status = 'cumprido_com_ressalva') as ressalvas,
-          count(*) filter (where status = 'atrasado') as atrasadas,
+          count(*) filter (where status = 'atrasado' or (status = 'pendente' and prazo < ((now() at time zone 'America/Sao_Paulo')::date))) as atrasadas,
           count(*) filter (where status = 'validado') as validadas,
           count(*) filter (where status = 'devolvido') as devolvidas,
           count(*) as total
@@ -651,42 +766,44 @@ def page_dashboard():
     with b4: nav_button("👥 Usuários", "👥 Usuários", "acao_usuarios")
     with b5: nav_button("💾 Backup", "💾 Backup e restauração", "acao_backup")
 
-    titulo_secao("🗺️", "Zonas com maior necessidade de acompanhamento")
-    zonas = dataframe(
-        """
-        select lpad(z.numero::text, 3, '0') || 'ª ZE' as zona, z.municipio_sede,
-               count(t.id) filter (where t.status in ('pendente','atrasado','devolvido')) as pendencias,
-               count(t.id) filter (where t.status = 'atrasado') as atrasos,
-               count(t.id) as total
-        from zonas_eleitorais z
-        left join tarefas_zona t on t.zona_eleitoral_id = z.id
-        group by z.numero, z.municipio_sede
-        order by atrasos desc, pendencias desc, z.numero asc
-        limit 80
-        """
-    )
-    st.dataframe(zonas, use_container_width=True, hide_index=True)
+    with st.expander("📌 Carregar quadros detalhados do painel", expanded=False):
+        st.caption("Para o sistema abrir mais rapido, as tabelas detalhadas sao carregadas somente quando voce abre esta area.")
+        titulo_secao("🗺️", "Zonas com maior necessidade de acompanhamento")
+        zonas = dataframe(
+            """
+            select lpad(z.numero::text, 3, '0') || 'ª ZE' as zona, z.municipio_sede,
+                   count(t.id) filter (where t.status in ('pendente','atrasado','devolvido') or (t.status='pendente' and t.prazo < ((now() at time zone 'America/Sao_Paulo')::date))) as pendencias,
+                   count(t.id) filter (where t.status = 'atrasado' or (t.status='pendente' and t.prazo < ((now() at time zone 'America/Sao_Paulo')::date))) as atrasos,
+                   count(t.id) as total
+            from zonas_eleitorais z
+            left join tarefas_zona t on t.zona_eleitoral_id = z.id
+            group by z.numero, z.municipio_sede
+            order by atrasos desc, pendencias desc, z.numero asc
+            limit 30
+            """
+        )
+        st.dataframe(zonas, use_container_width=True, hide_index=True)
 
-    col1, col2 = st.columns(2)
-    with col1:
-        titulo_secao("🎯", "Itens mais pendentes")
-        st.dataframe(dataframe("""
-            select i.grupo, i.descricao, count(t.id) as pendencias
-            from tarefas_zona t join itens_monitoramento i on i.id = t.item_monitoramento_id
-            where t.status in ('pendente','atrasado','devolvido')
-            group by i.grupo, i.descricao order by pendencias desc limit 30
-        """), use_container_width=True, hide_index=True)
-    with col2:
-        titulo_secao("📆", "Evolução por ciclo")
-        st.dataframe(dataframe("""
-            select c.tipo_periodicidade, c.periodo_inicio, c.periodo_fim,
-                   count(t.id) as total,
-                   count(t.id) filter (where t.status='validado') as validadas,
-                   count(t.id) filter (where t.status='atrasado') as atrasadas
-            from ciclos_monitoramento c left join tarefas_zona t on t.ciclo_id=c.id
-            group by c.id, c.tipo_periodicidade, c.periodo_inicio, c.periodo_fim
-            order by c.periodo_inicio desc limit 20
-        """), use_container_width=True, hide_index=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            titulo_secao("🎯", "Itens mais pendentes")
+            st.dataframe(dataframe("""
+                select i.grupo, i.descricao, count(t.id) as pendencias
+                from tarefas_zona t join itens_monitoramento i on i.id = t.item_monitoramento_id
+                where t.status in ('pendente','atrasado','devolvido') or (t.status='pendente' and t.prazo < ((now() at time zone 'America/Sao_Paulo')::date))
+                group by i.grupo, i.descricao order by pendencias desc limit 20
+            """), use_container_width=True, hide_index=True)
+        with col2:
+            titulo_secao("📆", "Evolução por ciclo")
+            st.dataframe(dataframe("""
+                select c.tipo_periodicidade, c.periodo_inicio, c.periodo_fim,
+                       count(t.id) as total,
+                       count(t.id) filter (where t.status='validado') as validadas,
+                       count(t.id) filter (where t.status='atrasado' or (t.status='pendente' and t.prazo < ((now() at time zone 'America/Sao_Paulo')::date))) as atrasadas
+                from ciclos_monitoramento c left join tarefas_zona t on t.ciclo_id=c.id
+                group by c.id, c.tipo_periodicidade, c.periodo_inicio, c.periodo_fim
+                order by c.periodo_inicio desc limit 12
+            """), use_container_width=True, hide_index=True)
 
 
 def page_zonas():
@@ -715,9 +832,9 @@ def gerar_ciclo(conn, tipo: str, inicio: date, fim: date) -> int:
 def page_gerar_tarefas():
     st.header("Gerar tarefas de monitoramento")
     frequencia = st.selectbox("Frequência", ["diaria", "semanal", "quinzenal", "mensal", "bimestral", "trimestral", "anual"])
-    inicio = st.date_input("Início", value=date.today().replace(day=1))
-    fim = st.date_input("Fim", value=inicio + timedelta(days=30))
-    prazo = st.date_input("Prazo de preenchimento", value=fim)
+    inicio = st.date_input("Início", value=date.today().replace(day=1), format="DD/MM/YYYY")
+    fim = st.date_input("Fim", value=inicio + timedelta(days=30), format="DD/MM/YYYY")
+    prazo = st.date_input("Prazo de preenchimento", value=fim, format="DD/MM/YYYY")
     somente_itens = st.checkbox("Gerar apenas itens ativos desta frequência", value=True)
     if st.button("Gerar tarefas para todas as zonas ativas", type="primary"):
         with db_session() as conn:
@@ -792,7 +909,7 @@ def page_minhas_tarefas():
                 insert into respostas (tarefa_zona_id, usuario_id, status, observacao, justificativa, evidencia_url)
                 values (:tarefa, :usuario, :status, :observacao, :justificativa, :evidencia)
             """), {"tarefa": tarefa_id, "usuario": user["id"], "status": status, "observacao": observacao, "justificativa": justificativa, "evidencia": evidencia_url})
-            conn.execute(text("update tarefas_zona set status=:status, atualizado_em=now() where id=:id"), {"status": status, "id": tarefa_id})
+            conn.execute(text("update tarefas_zona set status=:status, atualizado_em=(now() at time zone 'America/Sao_Paulo') where id=:id"), {"status": status, "id": tarefa_id})
             if comentario.strip():
                 conn.execute(text("""
                     insert into comentarios_tarefa (tarefa_zona_id, comentario, autor_usuario_id, autor_nome, autor_email)
@@ -836,7 +953,7 @@ def page_validacao():
                 insert into validacoes_corregedoria (resposta_id, usuario_corregedoria_id, status_validacao, observacao)
                 values (:resposta, :usuario, :status, :obs)
             """), {"resposta": int(resposta_id), "usuario": user["id"], "status": acao, "obs": obs})
-            conn.execute(text("update tarefas_zona set status=:status, observacao_corregedoria=:obs, atualizado_em=now() where id=:id"), {"status": acao, "obs": obs, "id": tarefa_id})
+            conn.execute(text("update tarefas_zona set status=:status, observacao_corregedoria=:obs, atualizado_em=(now() at time zone 'America/Sao_Paulo') where id=:id"), {"status": acao, "obs": obs, "id": tarefa_id})
         registrar_auditoria("validar_check", "tarefas_zona", tarefa_id, campo="status", novo=acao, detalhe=obs)
         st.success("Validação registrada.")
         st.rerun()
@@ -931,8 +1048,8 @@ def page_usuarios():
                 with db_session() as conn:
                     conn.execute(text("""
                         insert into usuarios (nome, email, cpf, senha_hash, perfil_id, zona_eleitoral_id, ativo, validado, secao_operador, atualizado_em)
-                        values (:nome, :email, :cpf, :senha, :perfil, :zona, :ativo, :validado, :secao, now())
-                        on conflict (email) do update set nome=excluded.nome, cpf=excluded.cpf, senha_hash=excluded.senha_hash, perfil_id=excluded.perfil_id, zona_eleitoral_id=excluded.zona_eleitoral_id, ativo=excluded.ativo, validado=excluded.validado, atualizado_em=now()
+                        values (:nome, :email, :cpf, :senha, :perfil, :zona, :ativo, :validado, :secao, (now() at time zone 'America/Sao_Paulo'))
+                        on conflict (email) do update set nome=excluded.nome, cpf=excluded.cpf, senha_hash=excluded.senha_hash, perfil_id=excluded.perfil_id, zona_eleitoral_id=excluded.zona_eleitoral_id, ativo=excluded.ativo, validado=excluded.validado, atualizado_em=(now() at time zone 'America/Sao_Paulo')
                     """), {"nome": nome, "email": email, "cpf": cpf or None, "senha": hash_password(str(senha)[:72]), "perfil": perfil_id, "zona": zona_id, "ativo": ativo, "validado": validado, "secao": UNIDADE_CORREGEDORIA})
                 registrar_auditoria("salvar_usuario", "usuarios", detalhe=email)
                 st.success("Usuário criado/atualizado.")
@@ -948,10 +1065,10 @@ def page_usuarios():
             uid = st.selectbox("Selecionar usuário", usuarios_df["id"].tolist())
             col1, col2, col3 = st.columns(3)
             if col1.button("Validar cadastro"):
-                execute("update usuarios set validado=true, ativo=true, token_validacao=null, atualizado_em=now() where id=:id", id=int(uid))
+                execute("update usuarios set validado=true, ativo=true, token_validacao=null, atualizado_em=(now() at time zone 'America/Sao_Paulo') where id=:id", id=int(uid))
                 registrar_auditoria("validar_usuario_admin", "usuarios", int(uid)); st.success("Usuário validado.")
             if col2.button("Desativar/ativar"):
-                execute("update usuarios set ativo=not ativo, atualizado_em=now() where id=:id", id=int(uid))
+                execute("update usuarios set ativo=not ativo, atualizado_em=(now() at time zone 'America/Sao_Paulo') where id=:id", id=int(uid))
                 registrar_auditoria("alternar_ativo_usuario", "usuarios", int(uid)); st.success("Situação alterada.")
             if col3.button("Gerar token de recuperação"):
                 token = secrets.token_urlsafe(32); expira = agora_brasilia()+timedelta(hours=2)
@@ -1118,8 +1235,8 @@ def page_relatorios():
         zona_label = st.selectbox("Zona", zonas_options())
         zona_id = zona_id_from_label(zona_label)
     with col3:
-        data_de = st.date_input("Prazo de", value=None)
-        data_ate = st.date_input("Prazo até", value=None)
+        data_de = st.date_input("Prazo de", value=None, format="DD/MM/YYYY")
+        data_ate = st.date_input("Prazo até", value=None, format="DD/MM/YYYY")
     df = relatorio_base_df(status or None, zona_id, data_de, data_ate)
     st.caption(f"Registros encontrados: {len(df)}")
     st.dataframe(df, use_container_width=True, hide_index=True)
