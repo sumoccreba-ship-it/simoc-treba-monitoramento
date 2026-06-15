@@ -35,7 +35,7 @@ from security import hash_password, verify_password
 from treba_importer import importar_zonas, seed_zonas_bahia_padrao, TREBA_CONSULTA_CARTORIOS_URL
 from zonas_bahia import ZONAS_BAHIA
 
-st.set_page_config(page_title="SIMOC-BA - Monitoramento Cartorário", page_icon="✅", layout="wide")
+st.set_page_config(page_title="SIMOC-BA - Monitoramento Cartorário", page_icon="🛡️", layout="wide")
 
 FUSO_HORARIO_BRASILIA = timezone(timedelta(hours=-3), name="BRT")
 DOMINIO_INSTITUCIONAL = "@tre-ba.jus.br"
@@ -63,15 +63,59 @@ STATUS_TAREFA = ["pendente", "atrasado", "cumprido", "cumprido_com_ressalva", "n
 st.markdown(
     """
     <style>
-    .main-header {background:linear-gradient(90deg,#EAF3FF,#FFFFFF);padding:16px 20px;border-radius:12px;color:#174A7C;margin-bottom:16px;border:1px solid #D7E0EA;display:flex;align-items:center;gap:18px;}
-    .logo-box img {max-width:170px;max-height:64px;object-fit:contain;}
-    .main-header h1 {font-size:24px;margin:0 0 4px 0;color:#174A7C;}
-    .main-header p {font-size:13px;margin:2px 0;color:#3A5F82;}
-    .metric-card {background:white;border:1px solid #D7E0EA;border-top:4px solid #174A7C;border-radius:8px;padding:11px 12px;min-height:94px;text-align:center;}
-    .metric-card .label {font-size:12px;font-weight:700;color:#4B5563;margin-bottom:8px;}
-    .metric-card .value {font-size:25px;font-weight:800;color:#174A7C;}
-    .section-title {background:#174A7C;color:white;padding:8px 11px;border-radius:6px;margin:14px 0 8px 0;font-weight:800;}
-    .status-pill {border-radius:999px;padding:3px 9px;color:white;font-weight:700;font-size:12px;display:inline-block;}
+    :root {
+        --azul-tre:#174A7C;
+        --azul-claro:#EAF3FF;
+        --verde:#15803D;
+        --amarelo:#F59E0B;
+        --vermelho:#B91C1C;
+        --cinza:#475569;
+    }
+    .block-container {padding-top:1.2rem; padding-bottom:2.4rem; max-width: 1500px;}
+    section[data-testid="stSidebar"] {background:linear-gradient(180deg,#0F2F52,#174A7C);}
+    section[data-testid="stSidebar"] * {color:#FFFFFF !important;}
+    section[data-testid="stSidebar"] .stButton button {background:#FFFFFF;color:#174A7C !important;border-radius:12px;border:0;font-weight:800;}
+    div[data-testid="stButton"] button {border-radius:10px;font-weight:800;border:1px solid #174A7C;}
+    div[data-testid="stButton"] button[kind="primary"] {background:#174A7C;border-color:#174A7C;color:white;}
+    .main-header {background:linear-gradient(120deg,#0F2F52,#174A7C 45%,#EAF3FF);padding:18px 22px;border-radius:18px;color:white;margin-bottom:18px;border:1px solid #D7E0EA;display:flex;align-items:center;gap:18px;box-shadow:0 8px 22px rgba(15,47,82,.14);}
+    .logo-box {background:white;border-radius:14px;padding:10px;box-shadow:0 2px 8px rgba(0,0,0,.08);}
+    .logo-box img {max-width:170px;max-height:66px;object-fit:contain;}
+    .main-header h1 {font-size:25px;margin:0 0 5px 0;color:white;line-height:1.25;}
+    .main-header p {font-size:13px;margin:3px 0;color:#EAF3FF;}
+    .hero-caption {font-size:12px;background:rgba(255,255,255,.16);padding:5px 9px;border-radius:999px;display:inline-block;margin-top:6px;}
+    .metric-card {background:white;border:1px solid #D7E0EA;border-left:5px solid #174A7C;border-radius:14px;padding:13px 14px;min-height:104px;box-shadow:0 4px 12px rgba(15,47,82,.07);}
+    .metric-card .metric-top {display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+    .metric-card .icon {font-size:26px;line-height:1;}
+    .metric-card .label {font-size:12px;font-weight:800;color:#4B5563;text-transform:uppercase;letter-spacing:.03em;}
+    .metric-card .value {font-size:28px;font-weight:900;color:#174A7C;}
+    .section-title {background:#174A7C;color:white;padding:10px 13px;border-radius:10px;margin:18px 0 10px 0;font-weight:900;box-shadow:0 4px 12px rgba(23,74,124,.18);}
+    .status-pill {border-radius:999px;padding:4px 10px;color:white;font-weight:800;font-size:12px;display:inline-block;}
+    .action-card {background:#FFFFFF;border:1px solid #D7E0EA;border-radius:14px;padding:16px;min-height:142px;box-shadow:0 5px 14px rgba(15,47,82,.06);}
+    .action-card .bigicon {font-size:32px;margin-bottom:8px;}
+    .action-card h3 {color:#174A7C;font-size:17px;margin:0 0 6px 0;}
+    .action-card p {color:#475569;font-size:13px;margin:0;line-height:1.35;}
+    .alert-card {border-radius:14px;padding:13px 14px;margin:8px 0;border:1px solid #FCD34D;background:#FFFBEB;color:#78350F;}
+    .alert-card.danger {border-color:#FCA5A5;background:#FEF2F2;color:#7F1D1D;}
+    .alert-card.ok {border-color:#BBF7D0;background:#F0FDF4;color:#14532D;}
+    .guide-box {border-left:5px solid #174A7C;background:#F8FAFC;border-radius:12px;padding:14px 16px;margin:10px 0;}
+    .guide-box h4 {margin:0 0 5px 0;color:#174A7C;}
+    .guide-box p {margin:0;color:#475569;font-size:14px;}
+    div[data-testid="stDataFrame"] {border:1px solid #D7E0EA;border-radius:12px;overflow:hidden;}
+
+    .module-grid-title {font-size:18px;font-weight:900;color:#174A7C;margin:18px 0 10px 0;}
+    .module-card {background:#FFFFFF;border:1.5px solid #1D4ED8;border-radius:10px;padding:18px 18px 12px 18px;text-align:center;min-height:255px;box-shadow:0 8px 20px rgba(29,78,216,.06);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;}
+    .module-card:hover {transform:translateY(-2px);box-shadow:0 14px 28px rgba(29,78,216,.12);transition:all .16s ease-in-out;}
+    .module-icon {width:86px;height:86px;border:3px solid #005EB8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:39px;color:#005EB8;margin:4px auto 16px auto;background:#F8FBFF;}
+    .module-card h3 {font-size:21px;line-height:1.28;margin:4px 0 12px 0;color:#424B57;font-weight:900;}
+    .module-card p {font-size:14px;line-height:1.35;color:#475569;margin:0 auto 10px auto;max-width:310px;}
+    .module-card .mini {font-size:12px;color:#64748B;margin-top:8px;background:#F1F5F9;border-radius:999px;padding:4px 9px;}
+    .quick-btn button {width:100%;background:#005EB8 !important;color:white !important;border:0 !important;border-radius:8px !important;padding:.62rem 1rem !important;font-size:15px !important;}
+    .workflow-card {background:#FFFFFF;border:1px solid #D7E0EA;border-radius:14px;padding:16px;min-height:122px;box-shadow:0 5px 12px rgba(15,47,82,.06);}
+    .workflow-card h4 {font-size:16px;color:#174A7C;margin:0 0 7px 0;}
+    .workflow-card p {font-size:13px;color:#475569;margin:0;line-height:1.35;}
+    .plan-chip {display:inline-block;margin:4px 5px 4px 0;padding:6px 10px;border-radius:999px;background:#EAF3FF;border:1px solid #BFDBFE;color:#174A7C;font-weight:800;font-size:12px;}
+    .risk-strip {border-left:7px solid #B91C1C;background:#FEF2F2;border-radius:12px;padding:13px 15px;margin:10px 0;color:#7F1D1D;}
+    .orientation-strip {border-left:7px solid #005EB8;background:#EFF6FF;border-radius:12px;padding:13px 15px;margin:10px 0;color:#174A7C;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -166,6 +210,53 @@ def status_badge(status: str) -> str:
     }
     cor = mapa.get(status, "#475569")
     return f"<span class='status-pill' style='background:{cor};'>{status}</span>"
+
+
+def html_action_card(icone: str, titulo: str, texto: str) -> str:
+    return f"""
+    <div class='action-card'>
+        <div class='bigicon'>{icone}</div>
+        <h3>{titulo}</h3>
+        <p>{texto}</p>
+    </div>
+    """
+
+def st_action_card(icone: str, titulo: str, texto: str):
+    st.markdown(html_action_card(icone, titulo, texto), unsafe_allow_html=True)
+
+def st_alerta(tipo: str, titulo: str, texto: str):
+    classe = {'risco':'danger','ok':'ok','atenção':''}.get(tipo, '')
+    icone = {'risco':'🚨','ok':'✅','atenção':'⚠️'}.get(tipo, 'ℹ️')
+    st.markdown(f"<div class='alert-card {classe}'><b>{icone} {titulo}</b><br>{texto}</div>", unsafe_allow_html=True)
+
+def titulo_secao(icone: str, texto: str):
+    st.markdown(f"<div class='section-title'>{icone} {texto}</div>", unsafe_allow_html=True)
+
+
+def module_card_html(icone: str, titulo: str, texto: str, detalhe: str = "") -> str:
+    mini = f"<div class='mini'>{detalhe}</div>" if detalhe else ""
+    return f"""
+    <div class='module-card'>
+        <div class='module-icon'>{icone}</div>
+        <h3>{titulo}</h3>
+        <p>{texto}</p>
+        {mini}
+    </div>
+    """
+
+def nav_button(label: str, destino: str, key: str):
+    st.markdown("<div class='quick-btn'>", unsafe_allow_html=True)
+    clicked = st.button(label, key=key, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+    if clicked:
+        st.session_state.nav_target = destino
+        st.rerun()
+
+def workflow_card(icone: str, titulo: str, texto: str):
+    st.markdown(f"<div class='workflow-card'><h4>{icone} {titulo}</h4><p>{texto}</p></div>", unsafe_allow_html=True)
+
+def planilha_chips(itens: list[str]):
+    st.markdown("".join([f"<span class='plan-chip'>{i}</span>" for i in itens]), unsafe_allow_html=True)
 
 
 # ============================================================
@@ -418,7 +509,12 @@ def cabecalho():
         f"""
         <div class="main-header">
             <div class="logo-box"><img src="data:image/png;base64,{LOGO_CORREGEDORIA_BASE64}"></div>
-            <div><h1>{NOME_SISTEMA} - {NOME_COMPLETO}</h1><p>Corregedoria Regional Eleitoral da Bahia</p><p>Usuário: {u.get('nome','')} | Perfil: {u.get('perfil','')}</p></div>
+            <div>
+                <h1>🛡️ {NOME_SISTEMA} - Fiscalização e Orientação das Zonas Eleitorais</h1>
+                <p>{NOME_COMPLETO}</p>
+                <p>Corregedoria Regional Eleitoral da Bahia | Gestão de conformidade, prazos e evidências</p>
+                <span class="hero-caption">Usuário: {u.get('nome','')} · Perfil: {u.get('perfil','')}</span>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -426,12 +522,17 @@ def cabecalho():
 
 
 def sidebar_user():
-    st.sidebar.title("Menu")
-    st.sidebar.success(f"{usuario_logado().get('nome')}\n\nPerfil: {perfil_atual()}")
-    if st.sidebar.button("Sair"):
+    st.sidebar.markdown("### 🛡️ SIMOC-BA")
+    st.sidebar.markdown("Fiscalizar · Gerenciar · Orientar")
+    st.sidebar.divider()
+    st.sidebar.success(f"👤 {usuario_logado().get('nome')}\n\n🔐 Perfil: {perfil_atual()}")
+    st.sidebar.caption("Use o menu abaixo para acompanhar pendências, validar respostas e orientar as zonas eleitorais.")
+    if st.sidebar.button("🚪 Sair do sistema"):
         registrar_auditoria("logout", "usuarios", usuario_logado().get("id"))
         st.session_state.clear()
         st.rerun()
+
+
 
 
 # ============================================================
@@ -439,8 +540,11 @@ def sidebar_user():
 # ============================================================
 
 
-def render_metric(label, value, color="#174A7C"):
-    st.markdown(f"<div class='metric-card' style='border-top-color:{color};'><div class='label'>{label}</div><div class='value' style='color:{color};'>{value}</div></div>", unsafe_allow_html=True)
+def render_metric(label, value, color="#174A7C", icon="📊"):
+    st.markdown(
+        f"<div class='metric-card' style='border-left-color:{color};'><div class='metric-top'><div class='label'>{label}</div><div class='icon'>{icon}</div></div><div class='value' style='color:{color};'>{value}</div></div>",
+        unsafe_allow_html=True,
+    )
 
 
 def atualizar_atrasos():
@@ -450,7 +554,8 @@ def atualizar_atrasos():
 
 def page_dashboard():
     atualizar_atrasos()
-    st.header("Dashboard gerencial")
+    st.header("📊 Painel de fiscalização")
+    st.caption("Visão executiva para fiscalizar cumprimento, priorizar riscos e orientar as Zonas Eleitorais.")
     df = dataframe(
         """
         select
@@ -469,16 +574,46 @@ def page_dashboard():
     conformidade = round((int(row["validadas"] or 0) / total) * 100, 1) if total else 0
     cols = st.columns(7)
     cards = [
-        ("Total", total, "#174A7C"), ("Pendentes", int(row["pendentes"]), "#F59E0B"),
-        ("Atrasadas", int(row["atrasadas"]), "#B91C1C"), ("Cumpridas", int(row["cumpridas"]), "#2563EB"),
-        ("Validadas", int(row["validadas"]), "#15803D"), ("Devolvidas", int(row["devolvidas"]), "#C2410C"),
-        ("% validado", f"{conformidade}%", "#7A60A8"),
+        ("Total", total, "#174A7C", "📁"), ("Pendentes", int(row["pendentes"]), "#F59E0B", "⏳"),
+        ("Atrasadas", int(row["atrasadas"]), "#B91C1C", "🚨"), ("Cumpridas", int(row["cumpridas"]), "#2563EB", "☑️"),
+        ("Validadas", int(row["validadas"]), "#15803D", "✅"), ("Devolvidas", int(row["devolvidas"]), "#C2410C", "↩️"),
+        ("% validado", f"{conformidade}%", "#7A60A8", "📈"),
     ]
-    for col, (label, value, color) in zip(cols, cards):
+    for col, (label, value, color, icon) in zip(cols, cards):
         with col:
-            render_metric(label, value, color)
+            render_metric(label, value, color, icon)
 
-    st.markdown("<div class='section-title'>Zonas com pendências</div>", unsafe_allow_html=True)
+    if int(row["atrasadas"] or 0) > 0:
+        st_alerta("risco", "Atenção: existem tarefas atrasadas", "Priorize contato orientativo com as Zonas Eleitorais em atraso e registre eventual devolução/validação no sistema.")
+    elif total > 0:
+        st_alerta("ok", "Nenhum atraso identificado", "Mantenha o acompanhamento preventivo dos prazos e das evidências enviadas.")
+    else:
+        st_alerta("atenção", "Base ainda sem tarefas", "Faça a carga inicial, importe a planilha e gere o primeiro ciclo de monitoramento.")
+
+    titulo_secao("🧩", "Módulos de fiscalização, gestão e orientação")
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        st.markdown(module_card_html("📋", "Plano de ação da planilha", "Veja o checklist original: ELO, Sistemas da Intranet e observações críticas que deram origem ao monitoramento.", "Base inicial do SIMOC"), unsafe_allow_html=True)
+        nav_button("Acessar plano", "📌 Plano de ação", "nav_plano_dashboard")
+    with m2:
+        st.markdown(module_card_html("🗺️", "Zonas eleitorais", "Fiscalize a situação de cada Zona Eleitoral, município-sede, contatos, chefe, juiz e vínculos.", "001ª a 205ª ZE/BA"), unsafe_allow_html=True)
+        nav_button("Ver zonas", "🗺️ Zonas eleitorais", "nav_zonas_dashboard")
+    with m3:
+        st.markdown(module_card_html("✅", "Validação da Corregedoria", "Analise respostas, confira evidências, valide, devolva e registre orientação objetiva para a zona.", "Controle de conformidade"), unsafe_allow_html=True)
+        nav_button("Validar respostas", "🔎 Validação", "nav_validacao_dashboard")
+    with m4:
+        st.markdown(module_card_html("📊", "Relatórios e backup", "Gere PDF, Excel e backup JSON para reuniões, auditoria, acompanhamento e prestação de contas.", "Gestão e memória"), unsafe_allow_html=True)
+        nav_button("Gerar relatório", "📄 Relatórios", "nav_relatorios_dashboard")
+
+    titulo_secao("⚡", "Botões de ação imediata")
+    b1, b2, b3, b4, b5 = st.columns(5)
+    with b1: nav_button("📥 Importar bases", "📥 Importação", "acao_importar")
+    with b2: nav_button("⚙️ Gerar tarefas", "⚙️ Gerar tarefas", "acao_tarefas")
+    with b3: nav_button("🧭 Orientar zonas", "🧭 Orientações às zonas", "acao_orientar")
+    with b4: nav_button("👥 Usuários", "👥 Usuários", "acao_usuarios")
+    with b5: nav_button("💾 Backup", "💾 Backup e restauração", "acao_backup")
+
+    titulo_secao("🗺️", "Zonas com maior necessidade de acompanhamento")
     zonas = dataframe(
         """
         select lpad(z.numero::text, 3, '0') || 'ª ZE' as zona, z.municipio_sede,
@@ -488,7 +623,7 @@ def page_dashboard():
         from zonas_eleitorais z
         left join tarefas_zona t on t.zona_eleitoral_id = z.id
         group by z.numero, z.municipio_sede
-        order by pendencias desc, atrasos desc, z.numero asc
+        order by atrasos desc, pendencias desc, z.numero asc
         limit 80
         """
     )
@@ -496,7 +631,7 @@ def page_dashboard():
 
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("<div class='section-title'>Itens mais pendentes</div>", unsafe_allow_html=True)
+        titulo_secao("🎯", "Itens mais pendentes")
         st.dataframe(dataframe("""
             select i.grupo, i.descricao, count(t.id) as pendencias
             from tarefas_zona t join itens_monitoramento i on i.id = t.item_monitoramento_id
@@ -504,7 +639,7 @@ def page_dashboard():
             group by i.grupo, i.descricao order by pendencias desc limit 30
         """), use_container_width=True, hide_index=True)
     with col2:
-        st.markdown("<div class='section-title'>Evolução por ciclo</div>", unsafe_allow_html=True)
+        titulo_secao("📆", "Evolução por ciclo")
         st.dataframe(dataframe("""
             select c.tipo_periodicidade, c.periodo_inicio, c.periodo_fim,
                    count(t.id) as total,
@@ -946,6 +1081,104 @@ def page_relatorios():
     st.download_button("Exportar Excel completo", data=buffer.getvalue(), file_name=f"relatorio_simoc_ba_{agora_brasilia().strftime('%Y%m%d_%H%M')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
+
+def page_plano_acao():
+    st.header("📌 Plano de ação da planilha inicial")
+    st.caption("Esta página mantém viva a origem do sistema: transformar cada item da planilha de monitoramento em tarefa fiscalizável, com prazo, responsável, evidência, validação e orientação.")
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown(module_card_html("🧾", "ELO", "Rotinas eleitorais que exigem conferência recorrente, evidência e registro de cumprimento pela Zona Eleitoral.", "RAE, multa, ASE, lotes"), unsafe_allow_html=True)
+    with c2:
+        st.markdown(module_card_html("🖥️", "Sistemas da Intranet", "Acompanhamento de sistemas administrativos, judiciais e operacionais usados pelos cartórios eleitorais.", "PJe, DJE, SEI, ATENA"), unsafe_allow_html=True)
+    with c3:
+        st.markdown(module_card_html("🧭", "Observações críticas", "Determinações operacionais que precisam ser acompanhadas até o saneamento completo.", "PJe, livros e processos"), unsafe_allow_html=True)
+
+    titulo_secao("🧾", "Itens ELO da planilha")
+    planilha_chips([
+        "RAE em diligência", "Pagamento de multa eleitoral", "Perda/suspensão", "Banco de Erros", "Duplicidade/Coincidência",
+        "Lote de RAE em processamento", "Multa + ASE", "Atualização do logradouro", "Requerimento Web", "Edital de Lotes de RAEs", "Lotes assinados no SEI"
+    ])
+    st.markdown("<div class='orientation-strip'><b>Uso no sistema:</b> cada item vira tarefa com periodicidade, prazo, status, justificativa e evidência. A Corregedoria valida ou devolve com orientação.</div>", unsafe_allow_html=True)
+
+    titulo_secao("🖥️", "Sistemas da Intranet da planilha")
+    planilha_chips([
+        "Agenda eletrônica", "ASIWEB", "INFODIP", "JUSTIFICA", "LOGUSWEB", "PJe", "DJE", "ATENA", "Reembolsa", "INFOJUD", "BACENJUD", "RENAJUD", "SICO", "Mesário Voluntário", "SEI", "SAPF"
+    ])
+    st.markdown("<div class='orientation-strip'><b>Uso no sistema:</b> os itens por demanda não somem; eles podem ser gerados como tarefas específicas quando a Corregedoria precisar fiscalizar ou orientar determinada zona.</div>", unsafe_allow_html=True)
+
+    titulo_secao("🚨", "Observações que merecem alerta")
+    st.markdown("""
+    <div class='risk-strip'><b>PJe:</b> acompanhar atualização de documentos e saneamento de processos, exceto os sobrestados.</div>
+    <div class='risk-strip'><b>SEI:</b> verificar abertura e manutenção dos livros obrigatórios eletrônicos.</div>
+    <div class='risk-strip'><b>Processos pendentes:</b> permitir que a Corregedoria registre orientação, prazo de regularização e validação posterior.</div>
+    """, unsafe_allow_html=True)
+
+    titulo_secao("🎯", "Como fiscalizar cada item")
+    w1, w2, w3, w4 = st.columns(4)
+    with w1: workflow_card("1️⃣", "Gerar tarefa", "A Corregedoria seleciona frequência e período, e o sistema cria tarefas por Zona Eleitoral.")
+    with w2: workflow_card("2️⃣", "Zona responde", "Chefe/Substituto informa status, justificativa e evidência ou link do documento.")
+    with w3: workflow_card("3️⃣", "Corregedoria valida", "A resposta é validada, devolvida ou colocada em análise com orientação objetiva.")
+    with w4: workflow_card("4️⃣", "Relatório e auditoria", "O resultado fica registrado em dashboard, relatório PDF/Excel, backup e trilha de auditoria.")
+
+    cta1, cta2, cta3 = st.columns(3)
+    with cta1: nav_button("⚙️ Gerar tarefas da planilha", "⚙️ Gerar tarefas", "plano_gerar")
+    with cta2: nav_button("✅ Preencher checklist", "✅ Minhas tarefas", "plano_check")
+    with cta3: nav_button("📄 Relatório de cumprimento", "📄 Relatórios", "plano_relatorio")
+
+def page_orientacoes():
+    st.header("🧭 Orientações às Zonas Eleitorais")
+    st.caption("Área para orientar, padronizar comunicação e reduzir reincidência de pendências nas Zonas Eleitorais.")
+
+    o1, o2, o3, o4 = st.columns(4)
+    with o1:
+        st.markdown(module_card_html("⏰", "Antes do prazo", "Lembre a zona sobre o item, prazo, periodicidade e evidência esperada.", "Orientação preventiva"), unsafe_allow_html=True)
+    with o2:
+        st.markdown(module_card_html("🚨", "Pendência/atraso", "Contato orientativo, registro da justificativa e prazo de regularização.", "Acompanhamento ativo"), unsafe_allow_html=True)
+    with o3:
+        st.markdown(module_card_html("🔁", "Devolução", "Explique objetivamente o que faltou e qual evidência deve ser complementada.", "Correção assistida"), unsafe_allow_html=True)
+    with o4:
+        st.markdown(module_card_html("✅", "Validação", "Registre conformidade, preserve histórico e permita relatório gerencial.", "Encerramento do ciclo"), unsafe_allow_html=True)
+
+    titulo_secao("🧾", "Roteiro orientativo baseado na planilha inicial")
+    st.markdown("""
+    <div class='guide-box'><h4>ELO</h4><p>Verifique RAE em diligência, multa, perda/suspensão, banco de erros, duplicidade/coincidência, lote RAE, requerimento web, edital de RAEs e inserção no SEI.</p></div>
+    <div class='guide-box'><h4>Sistemas da Intranet</h4><p>Confira Agenda, ASIWEB, INFODIP, JUSTIFICA, LOGUSWEB, PJe, DJE, ATENA, Reembolsa, INFOJUD, BACENJUD, RENAJUD, SICO, Mesário Voluntário, SEI e SAPF.</p></div>
+    <div class='guide-box'><h4>Observações críticas</h4><p>Priorize atualização de documentos no PJe, abertura dos livros obrigatórios no SEI e saneamento dos processos pendentes.</p></div>
+    """, unsafe_allow_html=True)
+
+    titulo_secao("🛠️", "Botões para atuação da Corregedoria")
+    b1, b2, b3, b4 = st.columns(4)
+    with b1: nav_button("🔎 Validar respostas", "🔎 Validação", "orient_validar")
+    with b2: nav_button("📊 Ver painel", "📊 Painel de fiscalização", "orient_painel")
+    with b3: nav_button("📄 Emitir relatório", "📄 Relatórios", "orient_relatorio")
+    with b4: nav_button("🗺️ Consultar zona", "🗺️ Zonas eleitorais", "orient_zona")
+
+    titulo_secao("✉️", "Modelos de orientação")
+    tab1, tab2, tab3 = st.tabs(["Pendência", "Devolução", "Validação"])
+    with tab1:
+        st.text_area("Mensagem de pendência", value=(
+            "Prezada(o) Chefe de Cartório,\n\n"
+            "Consta no SIMOC-BA pendência referente a item do plano de monitoramento cartorário. "
+            "Solicitamos verificar a atividade, registrar o status no sistema e informar a evidência correspondente.\n\n"
+            "Caso haja impedimento, favor registrar justificativa objetiva para análise da Corregedoria.\n\n"
+            "Atenciosamente,\nCorregedoria Regional Eleitoral da Bahia"
+        ), height=190)
+    with tab2:
+        st.text_area("Mensagem de devolução", value=(
+            "Prezada(o) Chefe de Cartório,\n\n"
+            "A resposta enviada no SIMOC-BA foi devolvida para complementação. "
+            "Favor revisar a orientação registrada pela Corregedoria, complementar a evidência e reenviar o item para nova análise.\n\n"
+            "Atenciosamente,\nCorregedoria Regional Eleitoral da Bahia"
+        ), height=190)
+    with tab3:
+        st.text_area("Mensagem de validação", value=(
+            "Prezada(o) Chefe de Cartório,\n\n"
+            "A Corregedoria validou o item de monitoramento no SIMOC-BA. O registro ficará preservado para histórico, relatório e auditoria.\n\n"
+            "Agradecemos a colaboração.\n\n"
+            "Atenciosamente,\nCorregedoria Regional Eleitoral da Bahia"
+        ), height=190)
+
 def page_auditoria():
     st.header("Auditoria e histórico")
     st.dataframe(dataframe("select criado_em, usuario_nome, usuario_email, acao, entidade, entidade_id, campo, valor_anterior, valor_novo, detalhe from logs_auditoria order by criado_em desc limit 500"), use_container_width=True, hide_index=True)
@@ -964,24 +1197,28 @@ def main():
     cabecalho()
     sidebar_user()
     perfil = perfil_atual()
-    pages = ["Dashboard", "Zonas", "Minhas tarefas"]
+    pages = ["📊 Painel de fiscalização", "📌 Plano de ação", "🗺️ Zonas eleitorais", "✅ Minhas tarefas", "🧭 Orientações às zonas"]
     if eh_corregedoria():
-        pages += ["Validação", "Gerar tarefas", "Relatórios"]
+        pages += ["🔎 Validação", "⚙️ Gerar tarefas", "📄 Relatórios"]
     if perfil == "auditor":
-        pages += ["Relatórios"]
+        pages += ["📄 Relatórios"]
     if perfil == "admin":
-        pages += ["Importação", "Usuários", "Backup e restauração", "Auditoria"]
-    page = st.sidebar.radio("Navegação", pages)
-    if page == "Dashboard": page_dashboard()
-    elif page == "Zonas": page_zonas()
-    elif page == "Minhas tarefas": page_minhas_tarefas()
-    elif page == "Validação": page_validacao()
-    elif page == "Gerar tarefas": page_gerar_tarefas()
-    elif page == "Importação": page_importacao()
-    elif page == "Usuários": page_usuarios()
-    elif page == "Backup e restauração": page_backup()
-    elif page == "Relatórios": page_relatorios()
-    elif page == "Auditoria": page_auditoria()
+        pages += ["📥 Importação", "👥 Usuários", "💾 Backup e restauração", "🧾 Auditoria"]
+    target = st.session_state.pop("nav_target", None)
+    index = pages.index(target) if target in pages else 0
+    page = st.sidebar.radio("Navegação", pages, index=index)
+    if page == "📊 Painel de fiscalização": page_dashboard()
+    elif page == "📌 Plano de ação": page_plano_acao()
+    elif page == "🗺️ Zonas eleitorais": page_zonas()
+    elif page == "✅ Minhas tarefas": page_minhas_tarefas()
+    elif page == "🧭 Orientações às zonas": page_orientacoes()
+    elif page == "🔎 Validação": page_validacao()
+    elif page == "⚙️ Gerar tarefas": page_gerar_tarefas()
+    elif page == "📥 Importação": page_importacao()
+    elif page == "👥 Usuários": page_usuarios()
+    elif page == "💾 Backup e restauração": page_backup()
+    elif page == "📄 Relatórios": page_relatorios()
+    elif page == "🧾 Auditoria": page_auditoria()
 
 
 if __name__ == "__main__":
